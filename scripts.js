@@ -51,7 +51,7 @@ function GameBoard () {
     }
 
     const isValidPlace = (coordinates) => {
-        console.log(board[coordinates.row][coordinates.col].getValue())
+        // console.log(board[coordinates.row][coordinates.col].getValue())
         return board[coordinates.row][coordinates.col].getValue() === 'empty';
     }
     const placePiece = (Player, coordinates) => {
@@ -61,20 +61,50 @@ function GameBoard () {
     }
     const clearBoard = () => {
         for (let i = 0; i < rows; i++) {
-        board[i] = [];
             for (let j = 0; j < columns; j++) {
-                board[i].push(Cell());
-                console.log(board[i]);
+                board[i][j].setValue(null);
             }
         } 
     }
+    const getRow = (num) => board[num];
+    const getCol = (num) => {
+        return [board[0][num], board[1][num], board[2][num]];
+    }
+    const getCell = (row, col) => board[row][col];
+    const getCellValue = (row, col) => getCell(row,col).getValue();
+
+    const isBoardFull = () => board.every((row) => row.every((cell) => cell.getValue() !== 'empty'));
+    
+
+    const logCells = (arrOfCells) => {
+        let str = "";
+        for (let cell of arrOfCells) {
+            str += cell.getValue() + " "
+        }
+        console.log(str);
+    }
+    const winningTestSetup = () => {
+        const combinations = [
+            [0,0], 
+            //[0,1], [0,2],
+            [1,1], [2,1],
+            [2,2]
+        ]
+        for (let [row,col] of combinations) {
+            board[row][col].setValue('X');
+        }
+    }
     return {
         getBoard,
-        printBoard,
         displayGameBoard,
-        isValidPlace,
         placePiece,
         clearBoard,
+        getCellValue,
+        isValidPlace,
+        isBoardFull,
+        printBoard,
+        logCells,
+        winningTestSetup
     }
 }
 
@@ -95,9 +125,9 @@ function createPlayer (name, piece) {
     let playerPiece = piece;
 
     const getName = () => playerName;
-    const getPiece = () => piece;
+    const getPiece = () => playerPiece;
     const setName = (newName) => playerName = newName;
-    const setPiece = (newPiece) => playerPiece = piece;
+    const setPiece = (newPiece) => playerPiece = newPiece;
 
     return {
         getName,
@@ -143,7 +173,29 @@ function GameController ( playerOneName = "P1", playerTwoName = "P2") {
         return coords;
     }
 
+    const checkWinningCondition = () => {
+        // let board = Board.getBoard();
+        //board[row][col]
+        //check rowsfirst
+        let activePlayerPiece = activePlayer.getPiece();
+        const winPatterns = [
+            [[0,0], [0,1], [0,2]], [[1,0], [1,1], [1,2]] , [[2,0], [2,1], [2,2]], //rows
+            [[0,0], [1,0], [2,0]], [[0,1],[1,1],[2,1]], [[0,2],[1,2],[2,2]], //cols
+            [[0,0],[1,1],[2,2]], [[2,0],[1,1],[0,2]] //diag
+        ]
+        let winningCombination = winPatterns.filter( (pattern) => pattern.every( ([row,col]) => Board.getCellValue(row,col) === activePlayerPiece));
+        if (winningCombination.length !== 0) {
+            console.log('wincheck')
+            console.log(winningCombination);
+            winner = activePlayer;
+        }
+      
+    
+
+    }
+
     const playRound = () => {
+        Board.isBoardFull();
         logNewRound();
         let input = getPlayerInput();
         
@@ -153,23 +205,35 @@ function GameController ( playerOneName = "P1", playerTwoName = "P2") {
         }
         Board.placePiece(getActivePlayer(), input);
         //check winning condition here;
+        checkWinningCondition();
         changeActivePlayer();
     }
 
     const playGame = () => {
-
-        //for loop for now just a couple of rounds
-        for (let i = 0; i < 9; i++) {
+        while (!isGameOver() && !Board.isBoardFull()){
             playRound();
         }
+        //winner or tie?
+        
+    }  
+
+    const reset = () => {
+        Board.clearBoard();
+        winner = null;
     }
 
+    const winTest =  () => {
+        Board.winningTestSetup();
+        Board.printBoard();
+        checkWinningCondition();
+    }
     return {
-        // debug
+        
         isGameOver,
         playRound,
         playGame,
-
+        winTest,
+        reset
     }
     
 }
