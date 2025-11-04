@@ -137,16 +137,21 @@ function createPlayer (name, piece) {
     }
 }
 
-function GameController ( playerOneName = "P1", playerTwoName = "P2") {
+function GameController ( ) {
 
     const Board = GameBoard();
-    const players = [
-        createPlayer(playerOneName, 'X'),
-        createPlayer(playerTwoName, 'O')
-    ]
-    let activePlayer = players[0];
+    const players = [];
+    // createPlayer(playerOneName, 'X'),
+    // createPlayer(playerTwoName, 'O')
+
+    let activePlayer = null;
     let winner = null;
 
+    const setPlayers = (player1, player2) => {
+        players[0] = createPlayer(player1.name || 'Player 1', player1.piece ?? 'X');
+        players[1] = createPlayer(player2.name ?? 'Player 2', player2.piece ?? 'O');
+        activePlayer = players[0];
+    }
     const getActivePlayer = () => activePlayer;
     const changeActivePlayer = () => {
         activePlayer = activePlayer === players[0] ? players[1] : players[0];
@@ -176,7 +181,6 @@ function GameController ( playerOneName = "P1", playerTwoName = "P2") {
     const checkWinningCondition = () => {
         // let board = Board.getBoard();
         //board[row][col]
-        //check rowsfirst
         let activePlayerPiece = activePlayer.getPiece();
         const winPatterns = [
             [[0,0], [0,1], [0,2]], [[1,0], [1,1], [1,2]] , [[2,0], [2,1], [2,2]], //rows
@@ -185,24 +189,23 @@ function GameController ( playerOneName = "P1", playerTwoName = "P2") {
         ]
         let winningCombination = winPatterns.filter( (pattern) => pattern.every( ([row,col]) => Board.getCellValue(row,col) === activePlayerPiece));
         if (winningCombination.length !== 0) {
-            console.log('wincheck')
+            console.log('win!')
             console.log(winningCombination);
             winner = activePlayer;
         }
       
-    
-
     }
 
-    const playRound = () => {
-        Board.isBoardFull();
+    const playRound = (input) => {
         logNewRound();
-        let input = getPlayerInput();
+        // let input = getPlayerInput();
         
-        if (input === -1 || !Board.isValidPlace(input)) {
-            alert('invalid place');
-            return;
-        }
+        // if (input === -1 || !Board.isValidPlace(input)) {
+        //     alert('invalid place');
+        //     return;
+        // }
+        console.log(input);
+
         Board.placePiece(getActivePlayer(), input);
         //check winning condition here;
         checkWinningCondition();
@@ -213,8 +216,10 @@ function GameController ( playerOneName = "P1", playerTwoName = "P2") {
         while (!isGameOver() && !Board.isBoardFull()){
             playRound();
         }
-        //winner or tie?
         
+        if (Board.isBoardFull()) {
+            //tie
+        }
     }  
 
     const reset = () => {
@@ -228,14 +233,83 @@ function GameController ( playerOneName = "P1", playerTwoName = "P2") {
         checkWinningCondition();
     }
     return {
-        
-        isGameOver,
+        getBoard: Board.getBoard,
+        setPlayers,
+        getActivePlayer,
         playRound,
-        playGame,
-        winTest,
         reset
+
     }
     
 }
 
-const game = GameController();
+function displayController() {
+    const DOM = {
+        menu: document.querySelector('div.menu'),
+        p1Name: document.querySelector('#p1-name'),
+        p1Piece: document.querySelector('#p1-piece'),
+        p2Name: document.querySelector('#p2-name'),
+        p2Piece: document.querySelector('#p2-piece'),
+        startButton: document.querySelector('#start'),
+        game: document.querySelector('div.game'),
+        turnContainer: document.querySelector('.turn-container'),
+        gameContainer: document.querySelector('.game-container'),
+        buttons: document.querySelectorAll('.game-container button'),
+        endDialog: document.querySelector('#end-dialog'),
+        playAgainButton: document.querySelector('#again'),
+    }
+
+    let game = GameController();
+    let turnSVG = createSVG('#alpha-x');
+  
+    console.log(DOM.turnContainer)
+    const updateScreen = () => {
+        const board = game.getBoard();
+        const activePlayer = game.getActivePlayer();
+        //text content wipes children
+        DOM.turnContainer.textContent = `${activePlayer.getName()}'s turn`
+        DOM.turnContainer.appendChild(turnSVG);
+        changeSVG(activePlayer.getPiece());
+    }
+
+    //event handlers
+    function pieceInputHandler(e) {
+        let switchInput = {'X': 'O', 'O': 'X'}
+        let other = e.target === DOM.p1Piece ? DOM.p2Piece : DOM.p1Piece;
+        other.value = switchInput[e.target.value];
+    }
+    function clickStartHandler(e){
+        //This is the starting point of the game
+        game.setPlayers(
+            {name: DOM.p1Name.value, piece: DOM.p1Piece.value},
+            {name: DOM.p2Name.value, piece: DOM.p2Piece.value}
+        );
+        toggleHide(DOM.menu);
+        toggleHide(DOM.game);
+        //initial update screen
+        updateScreen();
+    }
+    DOM.startButton.addEventListener('click', clickStartHandler);
+    DOM.p1Piece.addEventListener('change', pieceInputHandler);
+    DOM.p2Piece.addEventListener('change', pieceInputHandler);
+    //helpers
+    function toggleHide(element) {
+        element.classList.toggle('hidden');
+    }
+    function createSVG(id) {
+        let svg = document.createElementNS("http://www.w3.org/2000/svg",'svg');
+        let use = document.createElementNS("http://www.w3.org/2000/svg",'use');
+        svg.setAttribute("viewBox", "0 0 24 24");
+    
+        use.setAttribute('href', id);
+        svg.appendChild(use);
+        return svg;
+    }
+    function changeSVG(id){
+        turnSVG.setAttribute('href', (id === 'X' ? '#alpha-x' : '#alpha-o'));
+    }
+
+    console.log(DOM)
+}
+displayController();
+
