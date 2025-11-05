@@ -204,14 +204,24 @@ button#start:hover {
 .turn-container svg {
   width: 6rem;
   height: 6rem;
-  color: var(--chalk-white);
 }
 .game-container {
   background-color: var(--chalk-white);
   aspect-ratio: 1;
   width: 70%;
   min-width: 180px;
-  /* border: 1rem solid var(--chalk-white); */
+  position: relative;
+}
+.game-container button {
+  background-color: var(--dark-green);
+  padding: 0;
+  border: none;
+}
+.game-container button:hover{
+  background-color: var(--light-green);
+}
+.game-container button:disabled {
+  color: var(--chalk-white);
 }
 #end-dialog {
   height: 21vh;
@@ -237,6 +247,9 @@ button#again:hover{
   box-shadow: 
     0 0.25rem 1.5rem rgba(0, 0, 0, 0.5)
    ;
+}
+button.winner:disabled {
+  color: var(--chalk-blue);
 }
 .hidden {
   display: none;

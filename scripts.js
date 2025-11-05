@@ -39,17 +39,7 @@ function GameBoard () {
         const boardWithValues = board.map( (row) => row.map((cell) => cell.getValue()))
         console.log(boardWithValues);
     }
-    const displayGameBoard =  ()  => {
-        let row = '';
-        for (let i = 0; i < rows; i++) {
-            row = '';
-            for (let j = 0; j < columns; j++){
-                row += `[ ${board[i][j].getValue()} ]`
-            }
-            console.log(row);
-        }
-    }
-
+ 
     const isValidPlace = (coordinates) => {
         // console.log(board[coordinates.row][coordinates.col].getValue())
         return board[coordinates.row][coordinates.col].getValue() === 'empty';
@@ -75,7 +65,6 @@ function GameBoard () {
 
     const isBoardFull = () => board.every((row) => row.every((cell) => cell.getValue() !== 'empty'));
     
-
     const logCells = (arrOfCells) => {
         let str = "";
         for (let cell of arrOfCells) {
@@ -95,16 +84,13 @@ function GameBoard () {
         }
     }
     return {
-        getBoard,
-        displayGameBoard,
         placePiece,
         clearBoard,
         getCellValue,
         isValidPlace,
         isBoardFull,
         printBoard,
-        logCells,
-        winningTestSetup
+        
     }
 }
 
@@ -123,12 +109,10 @@ function Cell() {
 function createPlayer (name, piece) {
     const playerName = name;
     let playerPiece = piece;
-
     const getName = () => playerName;
     const getPiece = () => playerPiece;
     const setName = (newName) => playerName = newName;
     const setPiece = (newPiece) => playerPiece = newPiece;
-
     return {
         getName,
         getPiece,
@@ -149,7 +133,7 @@ function GameController ( ) {
 
     const setPlayers = (player1, player2) => {
         players[0] = createPlayer(player1.name || 'Player 1', player1.piece ?? 'X');
-        players[1] = createPlayer(player2.name ?? 'Player 2', player2.piece ?? 'O');
+        players[1] = createPlayer(player2.name || 'Player 2', player2.piece ?? 'O');
         activePlayer = players[0];
     }
     const getActivePlayer = () => activePlayer;
@@ -161,14 +145,14 @@ function GameController ( ) {
 
     const logNewRound = () => {
         // Board.printBoard();
-        Board.displayGameBoard();
+        Board.printBoard();
         console.log(`${getActivePlayer().getName()}'s turn.`);
     }
 
     const getPlayerInput = () => {
         let input = prompt(`${getActivePlayer().getName()}, enter input in \"[row] [col]\" format:`)
         let inputArr = input.split(' ').map( (num) => parseInt(num) );
-        // console.log(inputArr);
+       
         if (inputArr.length !== 2 || inputArr[0] < 0 || inputArr[0] > 2 || inputArr[1] < 0 || inputArr[1] > 2) { return -1;}
 
         let coords = {
@@ -189,26 +173,25 @@ function GameController ( ) {
         ]
         let winningCombination = winPatterns.filter( (pattern) => pattern.every( ([row,col]) => Board.getCellValue(row,col) === activePlayerPiece));
         if (winningCombination.length !== 0) {
-            console.log('win!')
-            console.log(winningCombination);
             winner = activePlayer;
+            return winningCombination[0];
         }
-      
+        
     }
 
     const playRound = (input) => {
-        logNewRound();
+        // logNewRound();
         // let input = getPlayerInput();
-        
         // if (input === -1 || !Board.isValidPlace(input)) {
         //     alert('invalid place');
         //     return;
         // }
-        console.log(input);
-
         Board.placePiece(getActivePlayer(), input);
         //check winning condition here;
-        checkWinningCondition();
+        let result = checkWinningCondition();
+        if (result) {
+            return result;
+        }
         changeActivePlayer();
     }
 
@@ -216,7 +199,6 @@ function GameController ( ) {
         while (!isGameOver() && !Board.isBoardFull()){
             playRound();
         }
-        
         if (Board.isBoardFull()) {
             //tie
         }
@@ -233,12 +215,13 @@ function GameController ( ) {
         checkWinningCondition();
     }
     return {
-        getBoard: Board.getBoard,
+        getCellValue: Board.getCellValue,
+        isBoardFull: Board.isBoardFull,
+        isGameOver,
         setPlayers,
         getActivePlayer,
         playRound,
         reset
-
     }
     
 }
@@ -260,26 +243,96 @@ function displayController() {
     }
 
     let game = GameController();
-    let turnSVG = createSVG('#alpha-x');
-  
-    console.log(DOM.turnContainer)
+    let [turnSVG, turnUse ]= createSVG('#alpha-x');
+    const state = {
+        result: null
+    }
     const updateScreen = () => {
-        const board = game.getBoard();
         const activePlayer = game.getActivePlayer();
+        const boardDisplay = [
+            [DOM.buttons[0], DOM.buttons[1], DOM.buttons[2] ],
+            [DOM.buttons[3], DOM.buttons[4], DOM.buttons[5] ],
+            [DOM.buttons[6], DOM.buttons[7], DOM.buttons[8]]
+        ]
         //text content wipes children
         DOM.turnContainer.textContent = `${activePlayer.getName()}'s turn`
         DOM.turnContainer.appendChild(turnSVG);
-        changeSVG(activePlayer.getPiece());
+        changeTurnDisplaySVG(activePlayer.getPiece());
+
+        //draw board
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) { 
+                let value = game.getCellValue(i,j);
+                if (value !== 'empty') {
+                    changeButtonSVG(boardDisplay[i][j], value);
+                }
+            }
+        }
+
+        //little winner stuff
+        if (state.result) {
+            if (state.result === 'win' && state.winningCombination) {
+            state.winningCombination.map( ([row,col]) => {
+                boardDisplay[row][col].classList.add('winner')
+            });
+            showGameResults();
+            drawLine();
+            }
+        }
+       
+    }
+    function drawLine(){
+        let buttons = document.querySelectorAll('.winner');
+        let start = buttons[0].getBoundingClientRect();
+        let end = buttons[buttons.length-1].getBoundingClientRect();
+        let container = DOM.gameContainer.getBoundingClientRect();
+
+        let svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        let line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+
+        svg.style.position = 'absolute';
+        svg.style.top = '0';
+        svg.style.left = '0';
+        svg.style.width = '100%';
+        svg.style.height = '100%';
+    
+        line.setAttribute('x1', start.x -container.x + start.width/2);
+        line.setAttribute('y1', start.y -container.y + start.height/2);
+        line.setAttribute('x2', end.x -container.x + end.width/2);
+        line.setAttribute('y2', end.y - container.y + end.height/2);
+
+        line.setAttribute('stroke', 'red');
+        line.setAttribute('stroke-width', '5');
+        svg.appendChild(line);
+        DOM.gameContainer.appendChild(svg);
     }
 
+    function showGameResults() {
+        DOM.endDialog.querySelector('.result').textContent = (state.result === 'tie') ? 'Tie!' : `${game.getActivePlayer().getName()} is the Winner!`
+        DOM.endDialog.showModal();
+    }
     //event handlers
     function pieceInputHandler(e) {
         let switchInput = {'X': 'O', 'O': 'X'}
         let other = e.target === DOM.p1Piece ? DOM.p2Piece : DOM.p1Piece;
         other.value = switchInput[e.target.value];
     }
+    function handleBoardClicked(e) {
+        let button = e.target.closest('button');
+        if (!button) return;
+        let result = game.playRound(button.dataset);
+        if (result || game.isBoardFull()) {
+            state.result = (result ? 'win' : 'tie');
+            if (result) state.winningCombination = result;
+        }
+        updateScreen();
+    }
+    //game entry point
     function clickStartHandler(e){
-        //This is the starting point of the game
+         //initializing svg
+        DOM.buttons.forEach( (button) => {
+            button.appendChild(createSVG()[0]);
+        })
         game.setPlayers(
             {name: DOM.p1Name.value, piece: DOM.p1Piece.value},
             {name: DOM.p2Name.value, piece: DOM.p2Piece.value}
@@ -289,27 +342,39 @@ function displayController() {
         //initial update screen
         updateScreen();
     }
+    function refresh(e){
+        location.reload();
+    }
     DOM.startButton.addEventListener('click', clickStartHandler);
     DOM.p1Piece.addEventListener('change', pieceInputHandler);
     DOM.p2Piece.addEventListener('change', pieceInputHandler);
+    DOM.gameContainer.addEventListener('click', handleBoardClicked);
+    DOM.playAgainButton.addEventListener('click', refresh);
     //helpers
     function toggleHide(element) {
         element.classList.toggle('hidden');
     }
     function createSVG(id) {
+        if (id === 'empty') return;
         let svg = document.createElementNS("http://www.w3.org/2000/svg",'svg');
         let use = document.createElementNS("http://www.w3.org/2000/svg",'use');
         svg.setAttribute("viewBox", "0 0 24 24");
-    
-        use.setAttribute('href', id);
+        if (id) {
+            use.setAttribute('href', id);
+        }
         svg.appendChild(use);
-        return svg;
+        return [svg, use];
     }
-    function changeSVG(id){
-        turnSVG.setAttribute('href', (id === 'X' ? '#alpha-x' : '#alpha-o'));
+    function changeTurnDisplaySVG(id){
+        turnUse.setAttribute('href', (id === 'X' ? '#alpha-x' : '#alpha-o'));
+    }
+    function changeButtonSVG(button, id) {
+        let use = button.querySelector('use');
+        use.setAttribute('href', (id === 'X' ? '#alpha-x' : '#alpha-o'));
+        //disable button? 
+        button.setAttribute('disabled', true);
     }
 
-    console.log(DOM)
 }
 displayController();
 
